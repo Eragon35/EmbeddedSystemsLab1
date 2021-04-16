@@ -1,12 +1,14 @@
 #include <iostream>
 #include <windows.h>
 #include <fstream>
-#include <vector>
+#include <stdio.h>
 
 using namespace std;
 
 ifstream input;
 IMAGE_DOS_HEADER dos_header;
+IMAGE_NT_HEADERS nt_header; // читать будем IMAGE_NT_HEADERS только без дата директорий
+
 
 bool checker() {
     if(!input.is_open()) { // если вдруг его открыть не удалось, то выведем ошибку и выйдем
@@ -34,36 +36,43 @@ bool checker() {
     return false;
 }
 
-int main() {
-    vector<IMAGE_SECTION_HEADER> vector;
-
-    input.open("SpotifySetup.exe", ios::in | ios::binary);
-    ofstream output ("output.txt");
-    ofstream bin ("bin.txt");
-    if (checker()) return 0;
-
-    IMAGE_NT_HEADERS nt_header; // читать будем IMAGE_NT_HEADERS только без дата директорий
-    input.read(reinterpret_cast<char*>(&nt_header), sizeof(IMAGE_NT_HEADERS) - sizeof(IMAGE_DATA_DIRECTORY) * 16);
+bool checker2(){
     if(input.bad() || input.eof()) {
         cout << "Error reading IMAGE_NT_HEADERS32" << endl;
-        return 0;
+        return true;
     }
     if(nt_header.Signature != 'EP') { // Проверяем, что наш файл - PE сигнатура
         cout << "Incorrect PE signature" << endl;
-        return 0;
+        return true;
     }
     // позиция в файле таблицы секций - это размер всех заголовков полностью
     DWORD first_section = dos_header.e_lfanew + nt_header.FileHeader.SizeOfOptionalHeader
-            + sizeof(IMAGE_FILE_HEADER) + sizeof(DWORD);
+                          + sizeof(IMAGE_FILE_HEADER) + sizeof(DWORD);
 
     input.seekg(first_section); // переходим на первую секцию в таблице секций
     if(input.bad() || input.fail()) {
         std::cout << "Cannot reach section headers" << std::endl;
-        return 0;
+        return true;
     }
+    return false;
+}
+
+int main() {
+    string inputFile = "SpotifySetup.exe";
+    string outputFile = "output.txt";
+    string binFile = "bin.txt";
+    input.open(inputFile, ios::in | ios::binary);
+    ofstream output (outputFile);
+    ofstream bin (binFile);
+    if (checker()) return 0;
+
+    input.read(reinterpret_cast<char*>(&nt_header), sizeof(IMAGE_NT_HEADERS) - sizeof(IMAGE_DATA_DIRECTORY) * 16);
+    if (checker2()) return 0;
     WORD number_of_sections = nt_header.FileHeader.NumberOfSections;
 
     output << "AddressOfEntryPoint: " << nt_header.OptionalHeader.AddressOfEntryPoint << endl; // адрес точки входа
+
+    DWORD pointerToCode, sizeOfCode;
 
     for (WORD i = 0; i < number_of_sections; i++) { // выводим информацию о секциях
         IMAGE_SECTION_HEADER section_header;
@@ -79,11 +88,12 @@ int main() {
         output << "PointerToRelocations: 0x" << hex << section_header.PointerToRelocations << endl;
         output << "SizeOfRawData: 0x" << hex << section_header.SizeOfRawData << endl;
         output << "--------------------" << endl;
-        if (section_header.Characteristics & 0x20) vector.push_back(section_header);
+        if (section_header.Characteristics & 0x20) {
+            pointerToCode = section_header.PointerToRawData;
+            sizeOfCode = section_header.SizeOfRawData;
+//            save pointerToCode & sizeOfCode
+        }
     }
 
-    for (IMAGE_SECTION_HEADER header : vector) {
-        // TODO: write_binary_code
-    }
     return 0;
 }
