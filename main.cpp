@@ -54,11 +54,10 @@ bool checker() {
 
 
 int main() {
-    const char *inputFile = "SpotifySetup.exe";
+    const char *inputFile = "SteamSetup.exe";
     const char *outputFile = "output.txt";
     const char *binFile = "bin.txt";
-//    FILE *binFile = fopen("bin.txt", "wb");
-//    FILE *file = fopen(inputFile, "rb");
+
     input.open(inputFile, ios::in | ios::binary);
     ofstream output (outputFile);
     ofstream bin (binFile);
@@ -90,13 +89,10 @@ int main() {
             sizeOfCode = section_header.SizeOfRawData; // и продолжительность
         }
     }
-//    fseek(file, pointerToCode, SEEK_SET); // ищем начало секции с кодом
     input.seekg(pointerToCode);
     char* binCode = new char[sizeOfCode];
     input.read(binCode, sizeOfCode); // считываем в binCode бинарынй код
     bin.write(binCode, sizeOfCode); // записываем бинарный код
-//    fread(binCode, sizeof(std::byte), sizeOfCode, file);
-//    fwrite(binCode, sizeof(std::byte), sizeOfCode, binFile);
 
     return 0;
 }
